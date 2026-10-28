@@ -1,0 +1,79 @@
+services:
+  n1:
+    build: .
+    container_name: n1
+    environment:
+      NODE_ID: n1
+      PEERS: "${PEERS:?thiếu file .env}"
+      PORT: "8000"
+      DATA_DIR: /data
+    ports:
+      - "8001:8000"
+    volumes:
+      - n1_data:/data
+    restart: unless-stopped
+
+  n2:
+    build: .
+    container_name: n2
+    environment:
+      NODE_ID: n2
+      PEERS: "${PEERS:?thiếu file .env}"
+      PORT: "8000"
+      DATA_DIR: /data
+    ports:
+      - "8002:8000"
+    volumes:
+      - n2_data:/data
+    restart: unless-stopped
+
+  n3:
+    build: .
+    container_name: n3
+    environment:
+      NODE_ID: n3
+      PEERS: "${PEERS:?thiếu file .env}"
+      PORT: "8000"
+      DATA_DIR: /data
+    ports:
+      - "8003:8000"
+    volumes:
+      - n3_data:/data
+    restart: unless-stopped
+
+  n4:
+    build: .
+    container_name: n4
+    profiles: ["five"]
+    environment:
+      NODE_ID: n4
+      PEERS: "${PEERS:?thiếu file .env}"
+      PORT: "8000"
+      DATA_DIR: /data
+    ports:
+      - "8004:8000"
+    volumes:
+      - n4_data:/data
+    restart: unless-stopped
+
+  n5:
+    build: .
+    container_name: n5
+    profiles: ["five"]
+    environment:
+      NODE_ID: n5
+      PEERS: "${PEERS:?thiếu file .env}"
+      PORT: "8000"
+      DATA_DIR: /data
+    ports:
+      - "8005:8000"
+    volumes:
+      - n5_data:/data
+    restart: unless-stopped
+
+volumes:
+  n1_data:
+  n2_data:
+  n3_data:
+  n4_data:
+  n5_data:
