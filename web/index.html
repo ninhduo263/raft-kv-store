@@ -6,6 +6,7 @@
     <meta name="theme-color" content="#edf1eb" />
     <title>Raft Lab | Fault-tolerance demo</title>
     <link rel="stylesheet" href="/styles.css" />
+    <link rel="stylesheet" href="/protocols.css" />
   </head>
   <body>
     <div class="app-shell">
@@ -35,9 +36,8 @@
               <span>01</span> DISTRIBUTED SYSTEMS / LIVE SIMULATION
             </p>
             <h1>Fault-tolerance <em>lab.</em></h1>
-            <p class="intro-copy">
-              Raft key-value cluster <span class="intro-dot"></span> observe
-              consensus under pressure
+            <p id="mode-description" class="intro-copy">
+              Live Raft cluster · observe leader election and majority commits
             </p>
           </div>
           <div class="quorum-readout">
@@ -49,7 +49,13 @@
           </div>
         </section>
 
-        <section class="primary-grid">
+        <nav class="protocol-tabs" role="tablist" aria-label="Consensus protocol">
+          <button class="protocol-tab is-active" type="button" role="tab" aria-selected="true" data-protocol-tab="raft">Raft <span>LIVE CLUSTER</span></button>
+          <button class="protocol-tab" type="button" role="tab" aria-selected="false" data-protocol-tab="paxos">Paxos <span>MESSAGE SANDBOX</span></button>
+          <button class="protocol-tab" type="button" role="tab" aria-selected="false" data-protocol-tab="pbft">PBFT <span>BYZANTINE SANDBOX</span></button>
+        </nav>
+
+        <section class="primary-grid raft-content">
           <section class="network-section" aria-labelledby="network-title">
             <div class="section-heading">
               <div>
@@ -148,7 +154,7 @@
           </aside>
         </section>
 
-        <section class="secondary-grid">
+        <section class="secondary-grid raft-content">
           <section
             class="replication-section"
             aria-labelledby="replication-title"
@@ -191,6 +197,69 @@
             </ol>
           </section>
         </section>
+
+        <section class="protocol-lab paxos-content" aria-labelledby="paxos-title">
+          <div class="section-heading protocol-lab-heading">
+            <div><p class="section-index">06 / CRASH-FAULT CONSENSUS</p><h2 id="paxos-title">Paxos message laboratory</h2></div>
+            <span class="simulation-badge">SIMULATED / SINGLE INSTANCE</span>
+          </div>
+          <p class="protocol-intro">Advance one message at a time. Start both proposers before delivering messages to observe how a higher ballot preempts a lower one; dropped messages model omission faults.</p>
+          <div class="simulation-grid">
+            <div class="simulation-main">
+              <div class="simulation-toolbar paxos-toolbar">
+                <label class="sim-input">VALUE · P1 <input id="paxos-value-p1" value="amber" maxlength="24" /></label>
+                <button id="paxos-start-p1" class="button sim-button" type="button">Start P1 <code>(1,1)</code></button>
+                <label class="sim-input">VALUE · P2 <input id="paxos-value-p2" value="teal" maxlength="24" /></label>
+                <button id="paxos-start-p2" class="button sim-button" type="button">Start P2 <code>(1,2)</code></button>
+              </div>
+              <div class="queue-toolbar">
+                <div><span class="section-index">NETWORK MESSAGE QUEUE</span><span id="paxos-status" class="sim-status">Ready for proposals.</span></div>
+                <div class="step-buttons"><button id="paxos-next" class="button button-write" type="button">Deliver next</button><button id="paxos-drop" class="button button-secondary" type="button">Drop next</button><button id="paxos-reset" class="button button-text" type="button" aria-label="Reset Paxos simulation" title="Reset simulation">Reset</button></div>
+              </div>
+              <ol id="paxos-queue" class="message-queue"><li class="queue-empty">Start a proposer to enqueue PREPARE messages.</li></ol>
+              <div class="simulation-outcome" id="paxos-outcome" aria-live="polite">No value learned yet.</div>
+            </div>
+            <aside class="simulation-aside">
+              <div class="sim-metric"><span>ACCEPTOR MAJORITY</span><strong id="paxos-majority">2 OF 3</strong></div>
+              <div class="sim-state-block"><h3>Acceptors</h3><div id="paxos-acceptors" class="sim-replica-list"></div></div>
+              <div class="sim-state-block"><h3>Proposers</h3><div id="paxos-proposers" class="sim-replica-list"></div></div>
+              <p class="protocol-footnote">Ballot (m, i) is ordered lexicographically: round m first, then proposer id i. A proposer must adopt the highest previously accepted value in its promises.</p>
+            </aside>
+          </div>
+          <section class="protocol-events"><div class="section-heading compact-heading"><div><p class="section-index">MESSAGE TRACE</p><h2>Protocol events</h2></div><span id="paxos-event-count" class="event-count">00</span></div><ol id="paxos-events" class="event-list"><li class="event-empty">No protocol messages yet.</li></ol></section>
+        </section>
+
+        <section class="protocol-lab pbft-content" aria-labelledby="pbft-title">
+          <div class="section-heading protocol-lab-heading">
+            <div><p class="section-index">07 / BYZANTINE FAULT TOLERANCE</p><h2 id="pbft-title">PBFT view laboratory</h2></div>
+            <span class="simulation-badge">SIMULATED / ONE REQUEST</span>
+          </div>
+          <p class="protocol-intro">Inspect pre-prepare, prepare and commit. Inject a lying primary or backup, then trigger a view change. The simulator checks client-request integrity and marks runs outside PBFT's fault bound.</p>
+          <div class="simulation-grid">
+            <div class="simulation-main">
+              <div class="simulation-toolbar pbft-toolbar">
+                <label class="sim-input">REPLICAS <select id="pbft-count"><option value="3">3 replicas</option><option value="4" selected>4 replicas</option></select></label>
+                <label class="sim-input">FAULT INJECTION <select id="pbft-fault"><option value="honest">No liar</option><option value="primary">Primary lies</option><option value="backup">Backup lies</option></select></label>
+                <label class="sim-input pbft-liar-wrap">LYING BACKUP <select id="pbft-liar"></select></label>
+                <label class="sim-input">CLIENT REQUEST <input id="pbft-request" value="transfer 10 to Bob" maxlength="48" /></label>
+              </div>
+              <div class="queue-toolbar">
+                <div><span class="section-index">PBFT MESSAGE QUEUE</span><span id="pbft-status" class="sim-status">Ready for a request.</span></div>
+                <div class="step-buttons"><button id="pbft-start" class="button button-write" type="button">Start request</button><button id="pbft-next" class="button sim-button" type="button">Deliver next</button><button id="pbft-drop" class="button button-secondary" type="button">Drop next</button><button id="pbft-view" class="button button-secondary" type="button">Trigger view change</button><button id="pbft-reset" class="button button-text" type="button" aria-label="Reset PBFT simulation" title="Reset simulation">Reset</button></div>
+              </div>
+              <ol id="pbft-queue" class="message-queue"><li class="queue-empty">Start a request to enqueue PRE-PREPARE messages.</li></ol>
+              <div class="simulation-outcome" id="pbft-outcome" aria-live="polite">No request committed.</div>
+            </div>
+            <aside class="simulation-aside">
+              <div class="sim-metric"><span>VIEW / PRIMARY</span><strong id="pbft-view-readout">0 / R0</strong></div>
+              <div class="sim-metric"><span>FAULT BOUND / QUORUM</span><strong id="pbft-bound">f = 1 / 3 votes</strong></div>
+              <div class="sim-state-block"><h3>Replicas</h3><div id="pbft-replicas" class="sim-replica-list"></div></div>
+              <p id="pbft-warning" class="pbft-warning">With 4 replicas, PBFT tolerates one Byzantine replica.</p>
+              <p class="protocol-footnote">PBFT requires n ≥ 3f + 1. A replica commits only after a matching certificate; view change replaces a failed primary without changing the client request.</p>
+            </aside>
+          </div>
+          <section class="protocol-events"><div class="section-heading compact-heading"><div><p class="section-index">MESSAGE TRACE</p><h2>Protocol events</h2></div><span id="pbft-event-count" class="event-count">00</span></div><ol id="pbft-events" class="event-list"><li class="event-empty">No protocol messages yet.</li></ol></section>
+        </section>
       </main>
 
       <footer class="footer">
@@ -199,5 +268,6 @@
       </footer>
     </div>
     <script src="/app.js" defer></script>
+    <script src="/simulations.js" defer></script>
   </body>
 </html>

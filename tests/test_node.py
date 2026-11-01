@@ -112,6 +112,10 @@ class RaftClusterTests(unittest.TestCase):
             self.assertIn(b"Fault-tolerance", response.read())
         with urllib.request.urlopen(peers["n1"] + "/app.js", timeout=3) as response:
             self.assertIn(b"/cluster/status", response.read())
+        with urllib.request.urlopen(peers["n1"] + "/simulations.js", timeout=3) as response:
+            self.assertIn(b"Paxos", response.read())
+        with urllib.request.urlopen(peers["n1"] + "/protocols.css", timeout=3) as response:
+            self.assertIn(b"protocol-tabs", response.read())
 
         deadline = time.time() + 5
         while time.time() < deadline and sum(node.status()["role"] == "leader" for node in self.nodes) != 1:

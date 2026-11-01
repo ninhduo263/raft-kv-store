@@ -30,6 +30,25 @@ Các cổng host là `8001`–`8003`. Gửi PUT/GET/DELETE tới bất kỳ node
 chuyển tiếp request tới leader. Thêm `?local=1` cho GET để đọc trực tiếp bản sao
 của node đó, có thể thấy dữ liệu chưa được cập nhật tức thời.
 
+## Demo Paxos và PBFT
+
+Chọn tab giao thức trên dashboard:
+
+- **Raft** là cụm Docker thật, có thể ghi key-value và mô phỏng network partition.
+- **Paxos** là sandbox cục bộ với ba acceptor và hai proposer. Bắt đầu P1 và P2
+	trước khi giao message để xem ballot `(m, i)` lớn hơn preempt proposer còn lại;
+	dùng `Deliver next` hoặc `Drop next` để điều khiển từng message. Proposer phải
+	chọn lại value có accepted ballot cao nhất nếu Promise báo đã có value trước đó.
+- **PBFT** cho phép chọn 3 hoặc 4 replicas, tiêm primary/backup nói dối, giao từng
+	PRE-PREPARE, PREPARE, COMMIT và chủ động đổi view. Với 4 replicas, PBFT chịu
+	được `f = 1` Byzantine replica (`n >= 3f + 1`); với 3 replicas chỉ có `f = 0`,
+	nên thử một replica nói dối nằm ngoài fault bound và dashboard sẽ cảnh báo không
+	thể đảm bảo kết quả. Khi primary đưa sai request, replicas trung thực từ chối;
+	trigger view change để primary mới thử lại request gốc.
+
+Paxos và PBFT trong dashboard là mô phỏng từng bước chạy trên trình duyệt, không
+phải các node distributed chạy trong Docker và không thay đổi dữ liệu Raft.
+
 ## Chạy cụm 5 node
 
 Sửa `.env` thành:
