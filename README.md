@@ -15,6 +15,10 @@ docker compose logs -f
 
 Chờ một node trở thành leader, sau đó gọi API bằng `curl.exe`:
 
+Mở dashboard demo tại [http://localhost:8001](http://localhost:8001) để theo dõi
+leader, term, commit index, trạng thái key-value và mô phỏng cô lập/khôi phục node.
+Các cổng demo chỉ bind trên máy local.
+
 ```powershell
 curl.exe -X PUT --data-binary "Hoang" http://localhost:8001/kv/name
 curl.exe http://localhost:8002/kv/name
@@ -46,15 +50,15 @@ Docker named volume; `docker compose down -v` sẽ xóa các volume này.
 
 ## API
 
-| Request | Mô tả |
-|---|---|
-| `PUT /kv/{key}` với body là giá trị dạng text | Ghi có đồng thuận đa số |
-| `GET /kv/{key}` | Đọc qua leader |
-| `GET /kv/{key}?local=1` | Đọc trực tiếp từ node hiện tại |
-| `DELETE /kv/{key}` | Xóa key qua Raft |
-| `GET /status` | Vai trò, term, commit index và dữ liệu local |
-| `POST /admin/block` với `{"peers":["n1","n2"]}` | Chặn RPC gửi đến/từ các node chỉ định |
-| `POST /admin/block` với `{"peers":[]}` | Bỏ chặn |
+| Request                                         | Mô tả                                        |
+| ----------------------------------------------- | -------------------------------------------- |
+| `PUT /kv/{key}` với body là giá trị dạng text   | Ghi có đồng thuận đa số                      |
+| `GET /kv/{key}`                                 | Đọc qua leader                               |
+| `GET /kv/{key}?local=1`                         | Đọc trực tiếp từ node hiện tại               |
+| `DELETE /kv/{key}`                              | Xóa key qua Raft                             |
+| `GET /status`                                   | Vai trò, term, commit index và dữ liệu local |
+| `POST /admin/block` với `{"peers":["n1","n2"]}` | Chặn RPC gửi đến/từ các node chỉ định        |
+| `POST /admin/block` với `{"peers":[]}`          | Bỏ chặn                                      |
 
 Ví dụ cô lập node n1 rồi gỡ chặn:
 

@@ -106,6 +106,43 @@ class RaftClusterTests(unittest.TestCase):
         for node in self.nodes:
             self.assertEqual(node.status()["kv"].get("name"), "Hoang")
 
+    def test_dashboard_and_partition_controls(self) -> None:
+        peers = self._start_cluster()
+        with urllib.request.urlopen(peers["n1"] + "/", timeout=3) as response:
+            self.assertIn(b"Fault-tolerance", response.read())
+        with urllib.request.urlopen(peers["n1"] + "/app.js", timeout=3) as response:
+            self.assertIn(b"/cluster/status", response.read())
+
+        deadline = time.time() + 5
+        while time.time() < deadline and sum(node.status()["role"] == "leader" for node in self.nodes) != 1:
+            time.sleep(0.03)
+        status, result = self._request(peers["n1"] + "/cluster/status")
+        self.assertEqual(status, 200)
+        self.assertEqual(set(result["nodes"]), {"n1", "n2", "n3"})
+        self.assertEqual(result["majority"], 2)
+
+        status, result = self._request(
+            peers["n1"] + "/admin/partition", "POST", json.dumps([]).encode()
+        )
+        self.assertEqual(status, 400)
+
+        status, result = self._request(
+            peers["n1"] + "/admin/partition",
+            "POST",
+            json.dumps({"isolate": "n1"}).encode(),
+        )
+        self.assertEqual(status, 200, result)
+        self.assertEqual(result["blocked"]["n1"], ["n2", "n3"])
+        self.assertEqual(result["blocked"]["n2"], ["n1"])
+
+        status, result = self._request(
+            peers["n1"] + "/admin/partition",
+            "POST",
+            json.dumps({"isolate": None}).encode(),
+        )
+        self.assertEqual(status, 200, result)
+        self.assertTrue(all(not blocked for blocked in result["blocked"].values()))
+
     def test_conflicting_suffix_is_truncated_and_persisted(self) -> None:
         with tempfile.TemporaryDirectory() as data_dir:
             peers = {
