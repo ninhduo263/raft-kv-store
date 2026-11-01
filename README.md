@@ -15,6 +15,10 @@ docker compose logs -f
 
 Chờ một node trở thành leader, sau đó gọi API bằng `curl.exe`:
 
+Mở dashboard demo tại [http://localhost:8001](http://localhost:8001) để theo dõi
+leader, term, commit index, trạng thái key-value và mô phỏng cô lập/khôi phục node.
+Các cổng demo chỉ bind trên máy local.
+
 ```powershell
 curl.exe -X PUT --data-binary "Hoang" http://localhost:8001/kv/name
 curl.exe http://localhost:8002/kv/name
@@ -25,6 +29,25 @@ curl.exe http://localhost:8001/status
 Các cổng host là `8001`–`8003`. Gửi PUT/GET/DELETE tới bất kỳ node nào; follower
 chuyển tiếp request tới leader. Thêm `?local=1` cho GET để đọc trực tiếp bản sao
 của node đó, có thể thấy dữ liệu chưa được cập nhật tức thời.
+
+## Demo Paxos và PBFT
+
+Chọn tab giao thức trên dashboard:
+
+- **Raft** là cụm Docker thật, có thể ghi key-value và mô phỏng network partition.
+- **Paxos** là sandbox cục bộ với ba acceptor và hai proposer. Bắt đầu P1 và P2
+	trước khi giao message để xem ballot `(m, i)` lớn hơn preempt proposer còn lại;
+	dùng `Deliver next` hoặc `Drop next` để điều khiển từng message. Proposer phải
+	chọn lại value có accepted ballot cao nhất nếu Promise báo đã có value trước đó.
+- **PBFT** cho phép chọn 3 hoặc 4 replicas, tiêm primary/backup nói dối, giao từng
+	PRE-PREPARE, PREPARE, COMMIT và chủ động đổi view. Với 4 replicas, PBFT chịu
+	được `f = 1` Byzantine replica (`n >= 3f + 1`); với 3 replicas chỉ có `f = 0`,
+	nên thử một replica nói dối nằm ngoài fault bound và dashboard sẽ cảnh báo không
+	thể đảm bảo kết quả. Khi primary đưa sai request, replicas trung thực từ chối;
+	trigger view change để primary mới thử lại request gốc.
+
+Paxos và PBFT trong dashboard là mô phỏng từng bước chạy trên trình duyệt, không
+phải các node distributed chạy trong Docker và không thay đổi dữ liệu Raft.
 
 ## Chạy cụm 5 node
 
@@ -46,15 +69,15 @@ Docker named volume; `docker compose down -v` sẽ xóa các volume này.
 
 ## API
 
-| Request | Mô tả |
-|---|---|
-| `PUT /kv/{key}` với body là giá trị dạng text | Ghi có đồng thuận đa số |
-| `GET /kv/{key}` | Đọc qua leader |
-| `GET /kv/{key}?local=1` | Đọc trực tiếp từ node hiện tại |
-| `DELETE /kv/{key}` | Xóa key qua Raft |
-| `GET /status` | Vai trò, term, commit index và dữ liệu local |
-| `POST /admin/block` với `{"peers":["n1","n2"]}` | Chặn RPC gửi đến/từ các node chỉ định |
-| `POST /admin/block` với `{"peers":[]}` | Bỏ chặn |
+| Request                                         | Mô tả                                        |
+| ----------------------------------------------- | -------------------------------------------- |
+| `PUT /kv/{key}` với body là giá trị dạng text   | Ghi có đồng thuận đa số                      |
+| `GET /kv/{key}`                                 | Đọc qua leader                               |
+| `GET /kv/{key}?local=1`                         | Đọc trực tiếp từ node hiện tại               |
+| `DELETE /kv/{key}`                              | Xóa key qua Raft                             |
+| `GET /status`                                   | Vai trò, term, commit index và dữ liệu local |
+| `POST /admin/block` với `{"peers":["n1","n2"]}` | Chặn RPC gửi đến/từ các node chỉ định        |
+| `POST /admin/block` với `{"peers":[]}`          | Bỏ chặn                                      |
 
 Ví dụ cô lập node n1 rồi gỡ chặn:
 

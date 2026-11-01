@@ -378,6 +378,19 @@ class Node:
                 "blocked": sorted(self.blocked),
             }
 
+    def cluster_status(self) -> dict[str, Any]:
+        nodes = {self.node_id: {**self.status(), "available": True}}
+        for peer, url in self.all_peers.items():
+            if peer == self.node_id:
+                continue
+            try:
+                with urllib.request.urlopen(url + "/status", timeout=self.rpc_timeout) as response:
+                    status = json.loads(response.read())
+                nodes[peer] = {**status, "available": True}
+            except (urllib.error.URLError, TimeoutError, OSError, json.JSONDecodeError):
+                nodes[peer] = {"id": peer, "available": False}
+        return {"nodes": nodes, "majority": self.majority}
+
     def _rpc(self, peer: str, path: str, payload: dict[str, Any]) -> dict[str, Any] | None:
         request = urllib.request.Request(
             self.peers[peer] + path,
@@ -417,6 +430,13 @@ class Handler(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(body)
 
+    def _reply_asset(self, body: bytes, content_type: str) -> None:
+        self.send_response(200)
+        self.send_header("Content-Type", content_type)
+        self.send_header("Content-Length", str(len(body)))
+        self.end_headers()
+        self.wfile.write(body)
+
     def _read_body(self) -> bytes:
         try:
             length = int(self.headers.get("Content-Length", "0"))
@@ -451,8 +471,23 @@ class Handler(BaseHTTPRequestHandler):
         query = urllib.parse.parse_qs(parsed_url.query)
         try:
             body = self._read_body()
+            assets = {
+                "/": ("index.html", "text/html; charset=utf-8"),
+                "/app.js": ("app.js", "text/javascript; charset=utf-8"),
+                "/styles.css": ("styles.css", "text/css; charset=utf-8"),
+                "/simulations.js": ("simulations.js", "text/javascript; charset=utf-8"),
+                "/protocols.css": ("protocols.css", "text/css; charset=utf-8"),
+            }
+            if method == "GET" and parsed_url.path in assets:
+                filename, content_type = assets[parsed_url.path]
+                asset_path = Path(__file__).with_name("web") / filename
+                self._reply_asset(asset_path.read_bytes(), content_type)
+                return
             if parsed_url.path == "/status" and method == "GET":
                 self._reply(200, node.status())
+                return
+            if parsed_url.path == "/cluster/status" and method == "GET":
+                self._reply(200, node.cluster_status())
                 return
             if parsed_url.path == "/raft/request_vote" and method == "POST":
                 self._reply(200, node.on_request_vote(json.loads(body)))
@@ -469,6 +504,41 @@ class Handler(BaseHTTPRequestHandler):
                     node.blocked = set(blocked)
                 node._log(f"blocked peers: {sorted(node.blocked) or 'none'}")
                 self._reply(200, {"blocked": sorted(node.blocked)})
+                return
+            if parsed_url.path == "/admin/partition" and method == "POST":
+                request = json.loads(body)
+                if not isinstance(request, dict) or "isolate" not in request:
+                    raise ValueError("isolate must be included")
+                isolate = request["isolate"]
+                if isolate is not None and (not isinstance(isolate, str) or isolate not in node.all_peers):
+                    raise ValueError("isolate must be a known node ID or null")
+                blocked_by_node = {}
+                errors = []
+                for target, url in node.all_peers.items():
+                    if isolate is None:
+                        blocked = []
+                    elif target == isolate:
+                        blocked = [peer for peer in node.all_peers if peer != isolate]
+                    else:
+                        blocked = [isolate]
+                    blocked_by_node[target] = blocked
+                    if target == node.node_id:
+                        with node.lock:
+                            node.blocked = set(blocked)
+                        continue
+                    partition_request = urllib.request.Request(
+                        url + "/admin/block",
+                        json.dumps({"peers": blocked}).encode(),
+                        {"Content-Type": "application/json"},
+                        method="POST",
+                    )
+                    try:
+                        with urllib.request.urlopen(partition_request, timeout=node.rpc_timeout) as response:
+                            response.read()
+                    except (urllib.error.URLError, TimeoutError, OSError) as error:
+                        errors.append({"node": target, "error": str(error)})
+                result = {"isolate": isolate, "blocked": blocked_by_node, "errors": errors}
+                self._reply(503 if errors else 200, result)
                 return
             if parsed_url.path.startswith("/kv/"):
                 key = urllib.parse.unquote(parsed_url.path[len("/kv/") :])

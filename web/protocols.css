@@ -1,0 +1,480 @@
+.protocol-tabs {
+  display: flex;
+  gap: 5px;
+  padding: 18px 0 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.protocol-tab {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  min-height: 43px;
+  padding: 0 15px 11px;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.protocol-tab span {
+  font: 8px var(--mono);
+  font-weight: 400;
+}
+
+.protocol-tab:hover,
+.protocol-tab.is-active {
+  color: var(--ink);
+}
+
+.protocol-tab.is-active {
+  border-bottom-color: var(--green);
+}
+
+.protocol-tab[data-protocol-tab="paxos"].is-active {
+  border-bottom-color: var(--blue);
+}
+
+.protocol-tab[data-protocol-tab="pbft"].is-active {
+  border-bottom-color: var(--orange);
+}
+
+.paxos-content,
+.pbft-content {
+  display: none;
+}
+
+body[data-protocol="paxos"] .raft-content,
+body[data-protocol="pbft"] .raft-content,
+body[data-protocol="paxos"] .quorum-readout,
+body[data-protocol="pbft"] .quorum-readout {
+  display: none;
+}
+
+body[data-protocol="paxos"] .paxos-content,
+body[data-protocol="pbft"] .pbft-content {
+  display: block;
+}
+
+.protocol-lab {
+  padding: 27px 0 30px;
+  border-bottom: 1px solid var(--line);
+}
+
+.protocol-lab-heading h2 {
+  font-size: 22px;
+}
+
+.simulation-badge {
+  margin-top: 6px;
+  padding: 4px 7px;
+  border: 1px solid var(--line);
+  color: var(--muted);
+  font: 8px var(--mono);
+}
+
+.protocol-intro {
+  max-width: 720px;
+  margin: 11px 0 18px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.simulation-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 275px;
+  border: 1px solid var(--line);
+  background: var(--surface);
+}
+
+.simulation-main {
+  min-width: 0;
+  border-right: 1px solid var(--line);
+}
+
+.simulation-toolbar {
+  display: flex;
+  align-items: end;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 14px;
+  border-bottom: 1px solid var(--line);
+  background: #f0f4ef;
+}
+
+.sim-input {
+  display: grid;
+  gap: 5px;
+  color: var(--muted);
+  font: 8px var(--mono);
+}
+
+.sim-input input,
+.sim-input select {
+  min-width: 100px;
+  min-height: 34px;
+  padding: 6px 8px;
+  border: 1px solid var(--line);
+  border-radius: 0;
+  background: white;
+  color: var(--ink);
+  font: 11px var(--mono);
+}
+
+.sim-button {
+  min-height: 34px;
+  padding: 0 10px;
+  background: white;
+  font-size: 10px;
+}
+
+.sim-button code {
+  margin-left: 4px;
+  color: var(--blue);
+  font: 9px var(--mono);
+}
+
+.paxos-toolbar .sim-input:nth-of-type(2) {
+  margin-left: 10px;
+}
+
+.pbft-toolbar {
+  align-items: end;
+}
+
+.pbft-toolbar .sim-input input {
+  min-width: 180px;
+}
+
+.queue-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--line);
+}
+
+.queue-toolbar > div:first-child {
+  display: grid;
+  gap: 4px;
+}
+
+.sim-status {
+  color: var(--muted);
+  font-size: 10px;
+}
+
+.step-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 5px;
+}
+
+.step-buttons .button {
+  min-height: 32px;
+  padding: 0 9px;
+  font-size: 9px;
+}
+
+.message-queue {
+  display: grid;
+  gap: 0;
+  min-height: 164px;
+  max-height: 310px;
+  margin: 0;
+  padding: 0;
+  overflow: auto;
+  list-style: none;
+}
+
+.message-item {
+  display: grid;
+  grid-template-columns: minmax(100px, 1fr) minmax(80px, .7fr) minmax(130px, 1fr);
+  align-items: center;
+  gap: 8px;
+  min-height: 37px;
+  padding: 6px 14px;
+  border-bottom: 1px solid #e3e8e2;
+  color: var(--muted);
+  font: 9px var(--mono);
+}
+
+.message-item.is-next {
+  background: #edf3fa;
+  color: var(--ink);
+}
+
+.message-type {
+  width: fit-content;
+  padding: 2px 5px;
+  background: var(--blue-soft);
+  color: var(--blue);
+  font-size: 8px;
+}
+
+.message-type.prepare,
+.message-type.pre-prepare {
+  background: var(--orange-soft);
+  color: #a35424;
+}
+
+.message-type.commit,
+.message-type.accepted {
+  background: var(--green-soft);
+  color: var(--green);
+}
+
+.message-type.view-change,
+.message-type.new-view {
+  background: #e6e9f4;
+  color: #4a5684;
+}
+
+.message-item code {
+  overflow: hidden;
+  color: var(--ink);
+  font: 9px var(--mono);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.queue-empty {
+  align-self: center;
+  padding: 24px 14px;
+  color: var(--muted);
+  font-size: 11px;
+  font-style: italic;
+  list-style: none;
+}
+
+.simulation-outcome {
+  min-height: 42px;
+  padding: 12px 14px;
+  border-top: 1px solid var(--line);
+  background: #f1f3ef;
+  color: var(--muted);
+  font: 10px var(--mono);
+}
+
+.simulation-outcome.is-success {
+  background: var(--green-soft);
+  color: var(--green);
+}
+
+.simulation-outcome.is-danger {
+  background: var(--red-soft);
+  color: var(--red);
+}
+
+.simulation-aside {
+  min-width: 0;
+  padding: 14px;
+}
+
+.sim-metric {
+  display: grid;
+  gap: 5px;
+  padding: 0 0 12px;
+  border-bottom: 1px solid var(--line);
+}
+
+.sim-metric + .sim-metric {
+  padding-top: 11px;
+}
+
+.sim-metric > span {
+  color: var(--muted);
+  font: 8px var(--mono);
+}
+
+.sim-metric strong {
+  color: var(--green);
+  font: 700 20px var(--display);
+}
+
+.sim-state-block {
+  padding-top: 13px;
+}
+
+.sim-state-block h3 {
+  margin: 0 0 7px;
+  color: var(--muted);
+  font: 9px var(--mono);
+  text-transform: uppercase;
+}
+
+.sim-replica-list {
+  display: grid;
+  gap: 5px;
+}
+
+.sim-replica {
+  display: grid;
+  gap: 4px;
+  padding: 7px 8px;
+  border: 1px solid #dfe5df;
+  background: white;
+}
+
+.sim-replica > div {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.sim-replica strong {
+  font: 700 10px var(--mono);
+}
+
+.sim-replica span,
+.sim-replica small {
+  color: var(--muted);
+  font: 8px var(--mono);
+}
+
+.sim-phase.learned {
+  color: var(--green);
+}
+
+.sim-phase.preempted {
+  color: var(--red);
+}
+
+.protocol-footnote {
+  margin: 13px 0 0;
+  color: var(--muted);
+  font-size: 10px;
+}
+
+.protocol-events {
+  margin-top: 23px;
+}
+
+.protocol-events .event-list {
+  max-height: 220px;
+  overflow: auto;
+}
+
+.pbft-liar-wrap[hidden] {
+  display: none;
+}
+
+.replica-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.replica-badges i {
+  padding: 2px 4px;
+  background: var(--blue-soft);
+  color: var(--blue);
+  font: normal 7px var(--mono);
+}
+
+.replica-badges .byzantine {
+  background: var(--red-soft);
+  color: var(--red);
+}
+
+.pbft-warning {
+  margin: 12px 0 0;
+  padding: 8px;
+  background: var(--green-soft);
+  color: var(--green);
+  font-size: 10px;
+}
+
+.pbft-warning.is-danger {
+  background: var(--red-soft);
+  color: var(--red);
+}
+
+@media (max-width: 900px) {
+  .simulation-grid {
+    grid-template-columns: minmax(0, 1fr) 235px;
+  }
+
+  .queue-toolbar {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .step-buttons {
+    justify-content: flex-start;
+  }
+}
+
+@media (max-width: 700px) {
+  .protocol-tabs {
+    gap: 0;
+    overflow-x: auto;
+  }
+
+  .protocol-tab {
+    flex: 0 0 auto;
+    gap: 6px;
+    padding-right: 10px;
+    padding-left: 10px;
+    font-size: 12px;
+  }
+
+  .protocol-tab span {
+    font-size: 7px;
+  }
+
+  .simulation-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .simulation-main {
+    border-right: 0;
+    border-bottom: 1px solid var(--line);
+  }
+
+  .simulation-aside {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+  }
+
+  .sim-state-block {
+    grid-column: span 2;
+  }
+
+  .protocol-footnote,
+  .pbft-warning {
+    grid-column: span 2;
+  }
+
+  .protocol-lab-heading {
+    align-items: flex-start;
+  }
+
+  .simulation-badge {
+    max-width: 105px;
+    line-height: 1.4;
+    text-align: center;
+  }
+
+  .message-item {
+    grid-template-columns: minmax(85px, 1fr) minmax(70px, .8fr);
+  }
+
+  .message-item code {
+    grid-column: 1 / -1;
+  }
+
+  .pbft-toolbar .sim-input,
+  .pbft-toolbar .sim-input input,
+  .pbft-toolbar .sim-input select {
+    width: 100%;
+    min-width: 0;
+  }
+}
