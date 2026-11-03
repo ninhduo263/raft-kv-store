@@ -4,7 +4,7 @@ services:
     container_name: n1
     environment:
       NODE_ID: n1
-      PEERS: "${PEERS:?thiếu file .env}"
+      PEERS: "${PEERS:-n1=http://n1:8000,n2=http://n2:8000,n3=http://n3:8000,n4=http://n4:8000,n5=http://n5:8000}"
       PORT: "8000"
       DATA_DIR: /data
     ports:
@@ -18,7 +18,7 @@ services:
     container_name: n2
     environment:
       NODE_ID: n2
-      PEERS: "${PEERS:?thiếu file .env}"
+      PEERS: "${PEERS:-n1=http://n1:8000,n2=http://n2:8000,n3=http://n3:8000,n4=http://n4:8000,n5=http://n5:8000}"
       PORT: "8000"
       DATA_DIR: /data
     ports:
@@ -32,7 +32,7 @@ services:
     container_name: n3
     environment:
       NODE_ID: n3
-      PEERS: "${PEERS:?thiếu file .env}"
+      PEERS: "${PEERS:-n1=http://n1:8000,n2=http://n2:8000,n3=http://n3:8000,n4=http://n4:8000,n5=http://n5:8000}"
       PORT: "8000"
       DATA_DIR: /data
     ports:
@@ -44,10 +44,9 @@ services:
   n4:
     build: .
     container_name: n4
-    profiles: ["five"]
     environment:
       NODE_ID: n4
-      PEERS: "${PEERS:?thiếu file .env}"
+      PEERS: "${PEERS:-n1=http://n1:8000,n2=http://n2:8000,n3=http://n3:8000,n4=http://n4:8000,n5=http://n5:8000}"
       PORT: "8000"
       DATA_DIR: /data
     ports:
@@ -59,10 +58,9 @@ services:
   n5:
     build: .
     container_name: n5
-    profiles: ["five"]
     environment:
       NODE_ID: n5
-      PEERS: "${PEERS:?thiếu file .env}"
+      PEERS: "${PEERS:-n1=http://n1:8000,n2=http://n2:8000,n3=http://n3:8000,n4=http://n4:8000,n5=http://n5:8000}"
       PORT: "8000"
       DATA_DIR: /data
     ports:

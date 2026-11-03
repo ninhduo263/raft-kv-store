@@ -17,13 +17,17 @@ protocolTabs.forEach((tab) => {
 });
 
 function escapeProtocolText(value) {
-  return String(value).replace(/[&<>"']/g, (character) => ({
-    "&": "&amp;",
-    "<": "&lt;",
-    ">": "&gt;",
-    '"': "&quot;",
-    "'": "&#39;",
-  })[character]);
+  return String(value).replace(
+    /[&<>"']/g,
+    (character) =>
+      ({
+        "&": "&amp;",
+        "<": "&lt;",
+        ">": "&gt;",
+        '"': "&quot;",
+        "'": "&#39;",
+      })[character],
+  );
 }
 
 function compareBallots(left, right) {
@@ -38,13 +42,14 @@ function ballotLabel(ballot) {
 let paxosState;
 
 function resetPaxos() {
+  const acceptorCount = 5;
   paxosState = {
-    majority: 2,
+    majority: Math.floor(acceptorCount / 2) + 1,
     queue: [],
     events: [],
     nextMessage: 1,
-    acceptors: ["A1", "A2", "A3"].map((id) => ({
-      id,
+    acceptors: Array.from({ length: acceptorCount }, (_item, index) => ({
+      id: `A${index + 1}`,
       promised: null,
       acceptedBallot: null,
       acceptedValue: null,
@@ -88,20 +93,24 @@ function enqueuePaxos(type, from, to, ballot, details = {}) {
 function startPaxos(proposerId) {
   const proposer = paxosState.proposers.find((item) => item.id === proposerId);
   if (!proposer || proposer.phase !== "idle") return;
-  proposer.value = document.querySelector(proposer.input).value.trim() || proposer.id;
+  proposer.value =
+    document.querySelector(proposer.input).value.trim() || proposer.id;
   proposer.phase = "preparing";
   proposer.promises = [];
   proposer.accepts = [];
   paxosState.acceptors.forEach((acceptor) => {
     enqueuePaxos("PREPARE", proposer.id, acceptor.id, proposer.ballot);
   });
-  document.querySelector("#paxos-status").textContent = `${proposer.id} is asking for promises.`;
+  document.querySelector("#paxos-status").textContent =
+    `${proposer.id} is asking for promises.`;
   renderPaxos();
 }
 
 function findPaxosNode(id) {
-  return paxosState.acceptors.find((item) => item.id === id)
-    || paxosState.proposers.find((item) => item.id === id);
+  return (
+    paxosState.acceptors.find((item) => item.id === id) ||
+    paxosState.proposers.find((item) => item.id === id)
+  );
 }
 
 function receivePaxos(message) {
@@ -120,14 +129,22 @@ function receivePaxos(message) {
       enqueuePaxos("NACK", acceptor.id, message.from, message.ballot, {
         promisedBallot: acceptor.promised && [...acceptor.promised],
       });
-      paxosEvent(`${acceptor.id} rejected stale ballot ${ballotLabel(message.ballot)}.`);
+      paxosEvent(
+        `${acceptor.id} rejected stale ballot ${ballotLabel(message.ballot)}.`,
+      );
     }
     return;
   }
 
   if (message.type === "PROMISE" && proposer) {
-    if (proposer.phase !== "preparing" || compareBallots(message.ballot, proposer.ballot) !== 0) return;
-    if (!proposer.promises.some((promise) => promise.acceptor === message.from)) {
+    if (
+      proposer.phase !== "preparing" ||
+      compareBallots(message.ballot, proposer.ballot) !== 0
+    )
+      return;
+    if (
+      !proposer.promises.some((promise) => promise.acceptor === message.from)
+    ) {
       proposer.promises.push({
         acceptor: message.from,
         acceptedBallot: message.acceptedBallot,
@@ -137,12 +154,18 @@ function receivePaxos(message) {
     if (proposer.promises.length >= paxosState.majority) {
       const previous = proposer.promises
         .filter((promise) => promise.acceptedBallot)
-        .sort((left, right) => compareBallots(right.acceptedBallot, left.acceptedBallot))[0];
+        .sort((left, right) =>
+          compareBallots(right.acceptedBallot, left.acceptedBallot),
+        )[0];
       if (previous) proposer.value = previous.acceptedValue;
       proposer.phase = "accepting";
-      paxosEvent(`${proposer.id} received a majority of promises${previous ? ` and adopted ${previous.acceptedValue}` : ""}.`);
+      paxosEvent(
+        `${proposer.id} received a majority of promises${previous ? ` and adopted ${previous.acceptedValue}` : ""}.`,
+      );
       paxosState.acceptors.forEach((item) => {
-        enqueuePaxos("ACCEPT", proposer.id, item.id, proposer.ballot, { value: proposer.value });
+        enqueuePaxos("ACCEPT", proposer.id, item.id, proposer.ballot, {
+          value: proposer.value,
+        });
       });
     }
     return;
@@ -153,33 +176,56 @@ function receivePaxos(message) {
       acceptor.promised = [...message.ballot];
       acceptor.acceptedBallot = [...message.ballot];
       acceptor.acceptedValue = message.value;
-      enqueuePaxos("ACCEPTED", acceptor.id, message.from, message.ballot, { value: message.value });
-      paxosEvent(`${acceptor.id} accepted ${message.value} at ${ballotLabel(message.ballot)}.`);
+      enqueuePaxos("ACCEPTED", acceptor.id, message.from, message.ballot, {
+        value: message.value,
+      });
+      paxosEvent(
+        `${acceptor.id} accepted ${message.value} at ${ballotLabel(message.ballot)}.`,
+      );
     } else {
       enqueuePaxos("NACK", acceptor.id, message.from, message.ballot, {
         promisedBallot: acceptor.promised && [...acceptor.promised],
       });
-      paxosEvent(`${acceptor.id} refused ACCEPT; it promised ${ballotLabel(acceptor.promised)}.`);
+      paxosEvent(
+        `${acceptor.id} refused ACCEPT; it promised ${ballotLabel(acceptor.promised)}.`,
+      );
     }
     return;
   }
 
   if (message.type === "ACCEPTED" && proposer) {
-    if (proposer.phase !== "accepting" || compareBallots(message.ballot, proposer.ballot) !== 0) return;
-    if (!proposer.accepts.includes(message.from)) proposer.accepts.push(message.from);
+    if (
+      proposer.phase !== "accepting" ||
+      compareBallots(message.ballot, proposer.ballot) !== 0
+    )
+      return;
+    if (!proposer.accepts.includes(message.from))
+      proposer.accepts.push(message.from);
     if (proposer.accepts.length >= paxosState.majority) {
       proposer.phase = "learned";
-      paxosState.learned = { proposer: proposer.id, ballot: [...proposer.ballot], value: message.value };
-      paxosEvent(`${proposer.id} learned ${message.value} from ${proposer.accepts.length} acceptors.`);
-      document.querySelector("#paxos-status").textContent = "A value has been learned by a majority.";
+      paxosState.learned = {
+        proposer: proposer.id,
+        ballot: [...proposer.ballot],
+        value: message.value,
+      };
+      paxosEvent(
+        `${proposer.id} learned ${message.value} from ${proposer.accepts.length} acceptors.`,
+      );
+      document.querySelector("#paxos-status").textContent =
+        "A value has been learned by a majority.";
     }
     return;
   }
 
   if (message.type === "NACK" && proposer && proposer.phase !== "learned") {
-    if (message.promisedBallot && compareBallots(message.promisedBallot, proposer.ballot) > 0) {
+    if (
+      message.promisedBallot &&
+      compareBallots(message.promisedBallot, proposer.ballot) > 0
+    ) {
       proposer.phase = "preempted";
-      paxosEvent(`${proposer.id} was preempted by ${ballotLabel(message.promisedBallot)}.`);
+      paxosEvent(
+        `${proposer.id} was preempted by ${ballotLabel(message.promisedBallot)}.`,
+      );
     }
   }
 }
@@ -189,49 +235,85 @@ function deliverPaxos(drop = false) {
   if (!message) return;
   if (drop) {
     paxosEvent(`Dropped ${message.type}: ${message.from} → ${message.to}.`);
-    document.querySelector("#paxos-status").textContent = `${message.type} was lost; no response will arrive.`;
+    document.querySelector("#paxos-status").textContent =
+      `${message.type} was lost; no response will arrive.`;
   } else {
     paxosEvent(`Delivered ${message.type}: ${message.from} → ${message.to}.`);
     receivePaxos(message);
-    document.querySelector("#paxos-status").textContent = `Delivered ${message.type} from ${message.from} to ${message.to}.`;
+    document.querySelector("#paxos-status").textContent =
+      `Delivered ${message.type} from ${message.from} to ${message.to}.`;
   }
   renderPaxos();
 }
 
 function renderPaxos() {
-  document.querySelector("#paxos-majority").textContent = `${paxosState.majority} OF ${paxosState.acceptors.length}`;
-  document.querySelector("#paxos-acceptors").innerHTML = paxosState.acceptors.map((acceptor) =>
-    `<article class="sim-replica"><div><strong>${acceptor.id}</strong><span>ACCEPTOR</span></div>` +
-    `<small>PROMISED ${ballotLabel(acceptor.promised)}</small>` +
-    `<small>ACCEPTED ${acceptor.acceptedValue === null ? "—" : `${escapeProtocolText(acceptor.acceptedValue)} @ ${ballotLabel(acceptor.acceptedBallot)}`}</small></article>`,
-  ).join("");
-  document.querySelector("#paxos-proposers").innerHTML = paxosState.proposers.map((proposer) =>
-    `<article class="sim-replica"><div><strong>${proposer.id} · ${ballotLabel(proposer.ballot)}</strong><span class="sim-phase ${proposer.phase}">${proposer.phase.toUpperCase()}</span></div>` +
-    `<small>VALUE ${escapeProtocolText(proposer.value)}</small>` +
-    `<small>PROMISES ${proposer.promises.length}/${paxosState.majority} · ACCEPTED ${proposer.accepts.length}/${paxosState.majority}</small></article>`,
-  ).join("");
+  document.querySelector("#paxos-majority").textContent =
+    `${paxosState.majority} OF ${paxosState.acceptors.length}`;
+  document
+    .querySelector("#paxos-acceptors")
+    .setAttribute(
+      "data-cluster",
+      `${paxosState.acceptors.length}-server cluster`,
+    );
+  document.querySelector("#paxos-acceptors").innerHTML = paxosState.acceptors
+    .map(
+      (acceptor) =>
+        `<article class="sim-replica"><div><strong>${acceptor.id}</strong><span>ACCEPTOR</span></div>` +
+        `<small>PROMISED ${ballotLabel(acceptor.promised)}</small>` +
+        `<small>ACCEPTED ${acceptor.acceptedValue === null ? "—" : `${escapeProtocolText(acceptor.acceptedValue)} @ ${ballotLabel(acceptor.acceptedBallot)}`}</small></article>`,
+    )
+    .join("");
+  document.querySelector("#paxos-proposers").innerHTML = paxosState.proposers
+    .map(
+      (proposer) =>
+        `<article class="sim-replica"><div><strong>${proposer.id} · ${ballotLabel(proposer.ballot)}</strong><span class="sim-phase ${proposer.phase}">${proposer.phase.toUpperCase()}</span></div>` +
+        `<small>VALUE ${escapeProtocolText(proposer.value)}</small>` +
+        `<small>PROMISES ${proposer.promises.length}/${paxosState.majority} · ACCEPTED ${proposer.accepts.length}/${paxosState.majority}</small></article>`,
+    )
+    .join("");
   document.querySelector("#paxos-queue").innerHTML = paxosState.queue.length
-    ? paxosState.queue.slice(0, 10).map((message, index) =>
-      `<li class="message-item${index === 0 ? " is-next" : ""}"><span class="message-type">${message.type}</span><span>${message.from} → ${message.to}</span><code>${ballotLabel(message.ballot)}${message.value ? ` · ${escapeProtocolText(message.value)}` : ""}</code></li>`,
-    ).join("")
+    ? paxosState.queue
+        .slice(0, 10)
+        .map(
+          (message, index) =>
+            `<li class="message-item${index === 0 ? " is-next" : ""}"><span class="message-type">${message.type}</span><span>${message.from} → ${message.to}</span><code>${ballotLabel(message.ballot)}${message.value ? ` · ${escapeProtocolText(message.value)}` : ""}</code></li>`,
+        )
+        .join("")
     : '<li class="queue-empty">Message queue is empty.</li>';
   const outcome = document.querySelector("#paxos-outcome");
   outcome.classList.toggle("is-success", Boolean(paxosState.learned));
   outcome.textContent = paxosState.learned
     ? `LEARNED · ${paxosState.learned.value} · ballot ${ballotLabel(paxosState.learned.ballot)} · proposer ${paxosState.learned.proposer}`
     : "No value learned yet.";
-  document.querySelector("#paxos-event-count").textContent = String(paxosState.events.length).padStart(2, "0");
+  document.querySelector("#paxos-event-count").textContent = String(
+    paxosState.events.length,
+  ).padStart(2, "0");
   document.querySelector("#paxos-events").innerHTML = paxosState.events.length
-    ? paxosState.events.map((event) => `<li><time>${event.time}</time><span>${escapeProtocolText(event.message)}</span></li>`).join("")
+    ? paxosState.events
+        .map(
+          (event) =>
+            `<li><time>${event.time}</time><span>${escapeProtocolText(event.message)}</span></li>`,
+        )
+        .join("")
     : '<li class="event-empty">No protocol messages yet.</li>';
-  document.querySelector("#paxos-next").disabled = paxosState.queue.length === 0;
-  document.querySelector("#paxos-drop").disabled = paxosState.queue.length === 0;
+  document.querySelector("#paxos-next").disabled =
+    paxosState.queue.length === 0;
+  document.querySelector("#paxos-drop").disabled =
+    paxosState.queue.length === 0;
 }
 
-document.querySelector("#paxos-start-p1").addEventListener("click", () => startPaxos("P1"));
-document.querySelector("#paxos-start-p2").addEventListener("click", () => startPaxos("P2"));
-document.querySelector("#paxos-next").addEventListener("click", () => deliverPaxos());
-document.querySelector("#paxos-drop").addEventListener("click", () => deliverPaxos(true));
+document
+  .querySelector("#paxos-start-p1")
+  .addEventListener("click", () => startPaxos("P1"));
+document
+  .querySelector("#paxos-start-p2")
+  .addEventListener("click", () => startPaxos("P2"));
+document
+  .querySelector("#paxos-next")
+  .addEventListener("click", () => deliverPaxos());
+document
+  .querySelector("#paxos-drop")
+  .addEventListener("click", () => deliverPaxos(true));
 document.querySelector("#paxos-reset").addEventListener("click", resetPaxos);
 
 function primaryFor(view, replicaCount) {
@@ -255,12 +337,19 @@ function pbftFaultyReplica() {
 }
 
 function resetPbft() {
-  const count = Number(document.querySelector("#pbft-count").value);
+  const count = Number(document.querySelector("#pbft-count").value || 5);
   const faultMode = document.querySelector("#pbft-fault").value;
   const liarSelect = document.querySelector("#pbft-liar");
-  const backupIds = Array.from({ length: count - 1 }, (_item, index) => `R${index + 1}`);
-  const selectedLiar = backupIds.includes(liarSelect.value) ? liarSelect.value : backupIds.at(-1);
-  liarSelect.innerHTML = backupIds.map((id) => `<option value="${id}">${id}</option>`).join("");
+  const backupIds = Array.from(
+    { length: Math.max(count - 1, 0) },
+    (_item, index) => `R${index + 1}`,
+  );
+  const selectedLiar = backupIds.includes(liarSelect.value)
+    ? liarSelect.value
+    : backupIds.at(-1);
+  liarSelect.innerHTML = backupIds
+    .map((id) => `<option value="${id}">${id}</option>`)
+    .join("");
   liarSelect.value = selectedLiar;
   pbftState = {
     count,
@@ -300,45 +389,73 @@ function pbftEvent(message) {
 }
 
 function enqueuePbft(type, from, to, details = {}) {
-  pbftState.queue.push({ id: pbftState.nextMessage++, type, from, to, view: pbftState.view, ...details });
-  pbftEvent(`Queued ${type}: ${from} → ${to}${details.value ? ` · ${details.value}` : ""}.`);
+  pbftState.queue.push({
+    id: pbftState.nextMessage++,
+    type,
+    from,
+    to,
+    view: pbftState.view,
+    ...details,
+  });
+  pbftEvent(
+    `Queued ${type}: ${from} → ${to}${details.value ? ` · ${details.value}` : ""}.`,
+  );
 }
 
-function startPbftRequest(primary = primaryFor(pbftState.view, pbftState.count), value = pbftState.request) {
+function startPbftRequest(
+  primary = primaryFor(pbftState.view, pbftState.count),
+  value = pbftState.request,
+) {
   pbftState.phase = "pre-prepare";
-  pbftState.request = document.querySelector("#pbft-request").value.trim() || pbftState.request;
+  pbftState.request =
+    document.querySelector("#pbft-request").value.trim() || pbftState.request;
   const isLyingPrimary = primary === pbftFaultyReplica();
-  const proposedValue = isLyingPrimary ? `${pbftState.request} [tampered]` : value;
+  const proposedValue = isLyingPrimary
+    ? `${pbftState.request} [tampered]`
+    : value;
   pbftState.replicas.forEach((replica) => {
     enqueuePbft("PRE-PREPARE", primary, replica.id, {
       value: proposedValue,
       sequence: pbftState.sequence,
     });
   });
-  pbftEvent(`${primary} proposed ${proposedValue}${isLyingPrimary ? " instead of the client-signed request" : ""}.`);
+  pbftEvent(
+    `${primary} proposed ${proposedValue}${isLyingPrimary ? " instead of the client-signed request" : ""}.`,
+  );
   renderPbft();
 }
 
 function enqueuePrepare(replicaId, value) {
   pbftState.replicas.forEach((replica) => {
-    enqueuePbft("PREPARE", replicaId, replica.id, { value, sequence: pbftState.sequence });
+    enqueuePbft("PREPARE", replicaId, replica.id, {
+      value,
+      sequence: pbftState.sequence,
+    });
   });
 }
 
 function enqueueCommit(replicaId, value) {
   pbftState.replicas.forEach((replica) => {
-    enqueuePbft("COMMIT", replicaId, replica.id, { value, sequence: pbftState.sequence });
+    enqueuePbft("COMMIT", replicaId, replica.id, {
+      value,
+      sequence: pbftState.sequence,
+    });
   });
 }
 
 function maybePreparePbft(replica, value) {
   const votes = replica.prepareVotes[value] || [];
   const faulty = replica.id === pbftFaultyReplica();
-  if (votes.length >= pbftQuorum() && (faulty || replica.preprepared === value)
-    && !replica.prepared.includes(value)) {
+  if (
+    votes.length >= pbftQuorum() &&
+    (faulty || replica.preprepared === value) &&
+    !replica.prepared.includes(value)
+  ) {
     replica.prepared.push(value);
     enqueueCommit(replica.id, value);
-    pbftEvent(`${replica.id} prepared ${value} with ${votes.length} matching votes, including the primary PRE-PREPARE.`);
+    pbftEvent(
+      `${replica.id} prepared ${value} with ${votes.length} matching votes, including the primary PRE-PREPARE.`,
+    );
   }
 }
 
@@ -351,17 +468,23 @@ function receivePbft(message) {
   if (message.type === "PRE-PREPARE") {
     if (message.view !== pbftState.view) return;
     if (message.value !== pbftState.request && !isFaulty) {
-      enqueuePbft("REJECT", replica.id, message.from, { value: message.value, reason: "request digest mismatch" });
-      pbftEvent(`${replica.id} rejected a PRE-PREPARE with an invalid client-request digest.`);
+      enqueuePbft("REJECT", replica.id, message.from, {
+        value: message.value,
+        reason: "request digest mismatch",
+      });
+      pbftEvent(
+        `${replica.id} rejected a PRE-PREPARE with an invalid client-request digest.`,
+      );
       return;
     }
     replica.preprepared = message.value;
     const primary = primaryFor(message.view, pbftState.count);
     replica.prepareVotes[message.value] = [primary];
     if (replica.id !== primary) {
-      const prepareValue = replica.id === faulty && replica.id !== primary
-        ? `${pbftState.request} [forged digest]`
-        : message.value;
+      const prepareValue =
+        replica.id === faulty && replica.id !== primary
+          ? `${pbftState.request} [forged digest]`
+          : message.value;
       enqueuePrepare(replica.id, prepareValue);
       pbftEvent(`${replica.id} accepted PRE-PREPARE and broadcast PREPARE.`);
     } else {
@@ -374,7 +497,9 @@ function receivePbft(message) {
   if (message.type === "PREPARE") {
     if (message.view !== pbftState.view) return;
     if (!isFaulty && replica.preprepared !== message.value) return;
-    const votes = replica.prepareVotes[message.value] || (replica.prepareVotes[message.value] = []);
+    const votes =
+      replica.prepareVotes[message.value] ||
+      (replica.prepareVotes[message.value] = []);
     if (!votes.includes(message.from)) votes.push(message.from);
     maybePreparePbft(replica, message.value);
     return;
@@ -383,36 +508,57 @@ function receivePbft(message) {
   if (message.type === "COMMIT") {
     if (message.view !== pbftState.view) return;
     if (!isFaulty && !replica.prepared.includes(message.value)) return;
-    const votes = replica.commitVotes[message.value] || (replica.commitVotes[message.value] = []);
+    const votes =
+      replica.commitVotes[message.value] ||
+      (replica.commitVotes[message.value] = []);
     if (!votes.includes(message.from)) votes.push(message.from);
-    if (votes.length >= pbftQuorum() && (isFaulty || replica.prepared.includes(message.value))
-      && !replica.committed.includes(message.value)) {
+    if (
+      votes.length >= pbftQuorum() &&
+      (isFaulty || replica.prepared.includes(message.value)) &&
+      !replica.committed.includes(message.value)
+    ) {
       replica.committed.push(message.value);
-      pbftEvent(`${replica.id} committed ${message.value} with ${votes.length} matching COMMIT votes.`);
+      pbftEvent(
+        `${replica.id} committed ${message.value} with ${votes.length} matching COMMIT votes.`,
+      );
     }
     return;
   }
 
   if (message.type === "VIEW-CHANGE") {
-    if (!pbftState.viewChanges.includes(message.from)) pbftState.viewChanges.push(message.from);
-    if (pbftState.viewChanges.length >= pbftQuorum() && !pbftState.newViewQueued) {
+    if (!pbftState.viewChanges.includes(message.from))
+      pbftState.viewChanges.push(message.from);
+    if (
+      pbftState.viewChanges.length >= pbftQuorum() &&
+      !pbftState.newViewQueued
+    ) {
       pbftState.newViewQueued = true;
       const newPrimary = primaryFor(pbftState.view, pbftState.count);
-      pbftEvent(`${pbftState.viewChanges.length} VIEW-CHANGE messages reached ${newPrimary}; quorum formed.`);
-      pbftState.replicas.forEach((item) => enqueuePbft("NEW-VIEW", newPrimary, item.id, { certificate: [...pbftState.viewChanges] }));
+      pbftEvent(
+        `${pbftState.viewChanges.length} VIEW-CHANGE messages reached ${newPrimary}; quorum formed.`,
+      );
+      pbftState.replicas.forEach((item) =>
+        enqueuePbft("NEW-VIEW", newPrimary, item.id, {
+          certificate: [...pbftState.viewChanges],
+        }),
+      );
     }
     return;
   }
 
   if (message.type === "NEW-VIEW" && !pbftState.newViewStarted) {
     pbftState.newViewStarted = true;
-    pbftEvent(`${message.from} installed view ${pbftState.view}; replaying the original client request.`);
+    pbftEvent(
+      `${message.from} installed view ${pbftState.view}; replaying the original client request.`,
+    );
     startPbftRequest(message.from, pbftState.request);
     return;
   }
 
   if (message.type === "REJECT") {
-    pbftEvent(`${message.from} rejected the request from ${message.to}: ${message.reason}.`);
+    pbftEvent(
+      `${message.from} rejected the request from ${message.to}: ${message.reason}.`,
+    );
   }
 }
 
@@ -421,11 +567,13 @@ function deliverPbft(drop = false) {
   if (!message) return;
   if (drop) {
     pbftEvent(`Dropped ${message.type}: ${message.from} → ${message.to}.`);
-    document.querySelector("#pbft-status").textContent = `${message.type} was lost; no response will arrive.`;
+    document.querySelector("#pbft-status").textContent =
+      `${message.type} was lost; no response will arrive.`;
   } else {
     pbftEvent(`Delivered ${message.type}: ${message.from} → ${message.to}.`);
     receivePbft(message);
-    document.querySelector("#pbft-status").textContent = `Delivered ${message.type} from ${message.from} to ${message.to}.`;
+    document.querySelector("#pbft-status").textContent =
+      `Delivered ${message.type} from ${message.from} to ${message.to}.`;
   }
   renderPbft();
 }
@@ -438,11 +586,18 @@ function triggerPbftViewChange() {
   pbftState.newViewQueued = false;
   pbftState.newViewStarted = false;
   const nextPrimary = primaryFor(pbftState.view, pbftState.count);
-  pbftEvent(`View timeout: replicas request view ${pbftState.view}; ${nextPrimary} becomes the next primary.`);
+  pbftEvent(
+    `View timeout: replicas request view ${pbftState.view}; ${nextPrimary} becomes the next primary.`,
+  );
   pbftState.replicas
     .filter((replica) => replica.id !== pbftFaultyReplica())
-    .forEach((replica) => enqueuePbft("VIEW-CHANGE", replica.id, nextPrimary, { newView: pbftState.view }));
-  document.querySelector("#pbft-status").textContent = `Waiting for ${pbftQuorum()} VIEW-CHANGE messages.`;
+    .forEach((replica) =>
+      enqueuePbft("VIEW-CHANGE", replica.id, nextPrimary, {
+        newView: pbftState.view,
+      }),
+    );
+  document.querySelector("#pbft-status").textContent =
+    `Waiting for ${pbftQuorum()} VIEW-CHANGE messages.`;
   renderPbft();
 }
 
@@ -452,43 +607,66 @@ function renderPbft() {
   const f = pbftLimit();
   const quorum = pbftQuorum();
   const faultExceeded = faulty && f < 1;
-  document.querySelector("#pbft-view-readout").textContent = `${pbftState.view} / ${primary}`;
-  document.querySelector("#pbft-bound").textContent = `f = ${f} / ${quorum} votes`;
+  document.querySelector("#pbft-view-readout").textContent =
+    `${pbftState.view} / ${primary}`;
+  document.querySelector("#pbft-bound").textContent =
+    `f = ${f} / ${quorum} votes`;
   const warning = document.querySelector("#pbft-warning");
   warning.classList.toggle("is-danger", Boolean(faultExceeded));
   warning.textContent = faultExceeded
     ? `n = ${pbftState.count} tolerates f = 0. One injected Byzantine replica exceeds the PBFT bound; this run has no safety guarantee.`
     : `n = ${pbftState.count} supports f = ${f}; this run requires ${quorum} matching votes.`;
-  document.querySelector("#pbft-replicas").innerHTML = pbftState.replicas.map((replica) => {
-    const role = replica.id === primary ? "PRIMARY" : "BACKUP";
-    const badges = [role, replica.id === faulty ? "BYZANTINE" : "HONEST"];
-    const status = replica.committed.length
-      ? `COMMITTED ${replica.committed.join(" / ")}`
-      : replica.prepared.length
-        ? `PREPARED ${replica.prepared.join(" / ")}`
-        : "WAITING";
-    return `<article class="sim-replica"><div><strong>${replica.id}</strong><span class="replica-badges">${badges.map((badge) => `<i class="${badge.toLowerCase()}">${badge}</i>`).join("")}</span></div><small>${escapeProtocolText(status)}</small><small>VIEW ${pbftState.view} · PREPARES ${Object.values(replica.prepareVotes).reduce((sum, votes) => sum + votes.length, 0)}</small></article>`;
-  }).join("");
+  document.querySelector("#pbft-replicas").innerHTML = pbftState.replicas
+    .map((replica) => {
+      const role = replica.id === primary ? "PRIMARY" : "BACKUP";
+      const badges = [role, replica.id === faulty ? "BYZANTINE" : "HONEST"];
+      const status = replica.committed.length
+        ? `COMMITTED ${replica.committed.join(" / ")}`
+        : replica.prepared.length
+          ? `PREPARED ${replica.prepared.join(" / ")}`
+          : "WAITING";
+      return `<article class="sim-replica"><div><strong>${replica.id}</strong><span class="replica-badges">${badges.map((badge) => `<i class="${badge.toLowerCase()}">${badge}</i>`).join("")}</span></div><small>${escapeProtocolText(status)}</small><small>VIEW ${pbftState.view} · PREPARES ${Object.values(replica.prepareVotes).reduce((sum, votes) => sum + votes.length, 0)}</small></article>`;
+    })
+    .join("");
   document.querySelector("#pbft-queue").innerHTML = pbftState.queue.length
-    ? pbftState.queue.slice(0, 12).map((message, index) =>
-      `<li class="message-item${index === 0 ? " is-next" : ""}"><span class="message-type ${message.type.toLowerCase()}">${message.type}</span><span>${message.from} → ${message.to}</span><code>v${message.view}${message.value ? ` · ${escapeProtocolText(message.value)}` : ""}</code></li>`,
-    ).join("")
+    ? pbftState.queue
+        .slice(0, 12)
+        .map(
+          (message, index) =>
+            `<li class="message-item${index === 0 ? " is-next" : ""}"><span class="message-type ${message.type.toLowerCase()}">${message.type}</span><span>${message.from} → ${message.to}</span><code>v${message.view}${message.value ? ` · ${escapeProtocolText(message.value)}` : ""}</code></li>`,
+        )
+        .join("")
     : '<li class="queue-empty">Message queue is empty.</li>';
-  const honestReplicas = pbftState.replicas.filter((replica) => replica.id !== faulty);
-  const honestDecisions = [...new Set(honestReplicas.flatMap((replica) => replica.committed))];
+  const honestReplicas = pbftState.replicas.filter(
+    (replica) => replica.id !== faulty,
+  );
+  const honestDecisions = [
+    ...new Set(honestReplicas.flatMap((replica) => replica.committed)),
+  ];
   const outcome = document.querySelector("#pbft-outcome");
   outcome.classList.toggle("is-success", honestDecisions.length === 1);
-  outcome.classList.toggle("is-danger", honestDecisions.length > 1 || Boolean(faultExceeded));
-  outcome.textContent = honestDecisions.length > 1
-    ? `SAFETY ALERT · honest replicas committed conflicting values: ${honestDecisions.join(" / ")}`
-    : honestDecisions.length === 1
-      ? `COMMITTED BY HONEST REPLICAS · ${honestDecisions[0]} · ${honestReplicas.filter((replica) => replica.committed.includes(honestDecisions[0])).length} replica(s)`
-      : faultExceeded
-        ? "OUTSIDE FAULT BOUND · no safe commit claim can be made."
-        : "No request committed.";
-  document.querySelector("#pbft-event-count").textContent = String(pbftState.events.length).padStart(2, "0");
+  outcome.classList.toggle(
+    "is-danger",
+    honestDecisions.length > 1 || Boolean(faultExceeded),
+  );
+  outcome.textContent =
+    honestDecisions.length > 1
+      ? `SAFETY ALERT · honest replicas committed conflicting values: ${honestDecisions.join(" / ")}`
+      : honestDecisions.length === 1
+        ? `COMMITTED BY HONEST REPLICAS · ${honestDecisions[0]} · ${honestReplicas.filter((replica) => replica.committed.includes(honestDecisions[0])).length} replica(s)`
+        : faultExceeded
+          ? "OUTSIDE FAULT BOUND · no safe commit claim can be made."
+          : "No request committed.";
+  document.querySelector("#pbft-event-count").textContent = String(
+    pbftState.events.length,
+  ).padStart(2, "0");
   document.querySelector("#pbft-events").innerHTML = pbftState.events.length
-    ? pbftState.events.map((event) => `<li><time>${event.time}</time><span>${escapeProtocolText(event.message)}</span></li>`).join("")
+    ? pbftState.events
+        .map(
+          (event) =>
+            `<li><time>${event.time}</time><span>${escapeProtocolText(event.message)}</span></li>`,
+        )
+        .join("")
     : '<li class="event-empty">No protocol messages yet.</li>';
   document.querySelector("#pbft-next").disabled = pbftState.queue.length === 0;
   document.querySelector("#pbft-drop").disabled = pbftState.queue.length === 0;
@@ -497,10 +675,18 @@ function renderPbft() {
 document.querySelector("#pbft-count").addEventListener("change", resetPbft);
 document.querySelector("#pbft-fault").addEventListener("change", resetPbft);
 document.querySelector("#pbft-liar").addEventListener("change", resetPbft);
-document.querySelector("#pbft-start").addEventListener("click", () => startPbftRequest());
-document.querySelector("#pbft-next").addEventListener("click", () => deliverPbft());
-document.querySelector("#pbft-drop").addEventListener("click", () => deliverPbft(true));
-document.querySelector("#pbft-view").addEventListener("click", triggerPbftViewChange);
+document
+  .querySelector("#pbft-start")
+  .addEventListener("click", () => startPbftRequest());
+document
+  .querySelector("#pbft-next")
+  .addEventListener("click", () => deliverPbft());
+document
+  .querySelector("#pbft-drop")
+  .addEventListener("click", () => deliverPbft(true));
+document
+  .querySelector("#pbft-view")
+  .addEventListener("click", triggerPbftViewChange);
 document.querySelector("#pbft-reset").addEventListener("click", resetPbft);
 
 resetPaxos();

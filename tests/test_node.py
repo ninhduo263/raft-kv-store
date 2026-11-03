@@ -38,7 +38,7 @@ class RaftClusterTests(unittest.TestCase):
             return sock.getsockname()[1]
 
     def _start_cluster(self) -> dict[str, str]:
-        ports = {node_id: self._reserve_port() for node_id in ("n1", "n2", "n3")}
+        ports = {node_id: self._reserve_port() for node_id in ("n1", "n2", "n3", "n4", "n5")}
         peers = {node_id: f"http://127.0.0.1:{port}" for node_id, port in ports.items()}
         for node_id, port in ports.items():
             node = Node(
@@ -122,8 +122,8 @@ class RaftClusterTests(unittest.TestCase):
             time.sleep(0.03)
         status, result = self._request(peers["n1"] + "/cluster/status")
         self.assertEqual(status, 200)
-        self.assertEqual(set(result["nodes"]), {"n1", "n2", "n3"})
-        self.assertEqual(result["majority"], 2)
+        self.assertEqual(set(result["nodes"]), {"n1", "n2", "n3", "n4", "n5"})
+        self.assertEqual(result["majority"], 3)
 
         status, result = self._request(
             peers["n1"] + "/admin/partition", "POST", json.dumps([]).encode()
@@ -136,7 +136,7 @@ class RaftClusterTests(unittest.TestCase):
             json.dumps({"isolate": "n1"}).encode(),
         )
         self.assertEqual(status, 200, result)
-        self.assertEqual(result["blocked"]["n1"], ["n2", "n3"])
+        self.assertEqual(result["blocked"]["n1"], ["n2", "n3", "n4", "n5"])
         self.assertEqual(result["blocked"]["n2"], ["n1"])
 
         status, result = self._request(
