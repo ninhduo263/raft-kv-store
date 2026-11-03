@@ -194,7 +194,10 @@ body[data-protocol="pbft"] .pbft-content {
 
 .message-item {
   display: grid;
-  grid-template-columns: minmax(100px, 1fr) minmax(80px, .7fr) minmax(130px, 1fr);
+  grid-template-columns: minmax(100px, 1fr) minmax(80px, 0.7fr) minmax(
+      130px,
+      1fr
+    );
   align-items: center;
   gap: 8px;
   min-height: 37px;
@@ -464,7 +467,7 @@ body[data-protocol="pbft"] .pbft-content {
   }
 
   .message-item {
-    grid-template-columns: minmax(85px, 1fr) minmax(70px, .8fr);
+    grid-template-columns: minmax(85px, 1fr) minmax(70px, 0.8fr);
   }
 
   .message-item code {
